@@ -34,10 +34,14 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN groupadd --system --gid 1001 nodejs \
   && useradd --system --uid 1001 --gid nodejs nextjs
 
-# Standalone server (includes traced node_modules, public/, excel-upload-tool/).
+# Standalone server (includes traced node_modules + excel-upload-tool/).
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-# Static assets are NOT auto-included in standalone — copy them in.
+# Static chunks are NOT auto-included in standalone — copy them in.
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy the FULL public/ dir. Standalone tracing only includes *referenced* small
+# files (it dropped logo.svg and would drop hero.mp4), so copy it wholesale to
+# guarantee every static asset (logo, hero.mp4, favicons) is served in prod.
+COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
 USER nextjs
 

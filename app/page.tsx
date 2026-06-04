@@ -4,8 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import { useDashboardStore } from '@/lib/store'
 import { DashboardShell } from '@/components/DashboardShell'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Footer } from '@/components/Footer'
-import { LandingHeader, LandingHero } from '@/components/LandingHero'
+import { MagmaLanding } from '@/components/MagmaLanding'
 
 function DashboardPageContent() {
   const router = useRouter()
@@ -110,15 +109,7 @@ function DashboardPageContent() {
   // Hero landing — default when no data, or when returning home from builder header
   if (!hasAnyData || showHeroLanding) {
     const openBuilder = () => router.push('/dashboard-builder')
-    return (
-      <div className="flex min-h-screen flex-col bg-[#070b14]">
-        <LandingHeader onOpenBuilder={openBuilder} />
-        <main className="flex-1 px-0">
-          <LandingHero onOpenBuilder={openBuilder} />
-        </main>
-        <Footer />
-      </div>
-    )
+    return <MagmaLanding onOpenBuilder={openBuilder} />
   }
 
   return <DashboardShell />

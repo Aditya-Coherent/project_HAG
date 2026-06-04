@@ -1,0 +1,340 @@
+/* Magma-inspired landing — electric blue, thin huge type, full-bleed sections.
+   Original implementation in React; no Locomotive/GSAP (native scroll + CSS). */
+
+.magma-root {
+  --magma-blue: #1137ca;
+  --magma-blue-2: #0a3cce;
+  --magma-accent: #1863ff;
+  background: var(--magma-blue);
+  color: #fff;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────── */
+.magma-nav {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 20px 30px;
+}
+.magma-logo-box {
+  display: inline-flex;
+  background: #fff;
+  border-radius: 10px;
+  padding: 8px 14px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+.magma-logo-img {
+  height: 32px;
+  width: auto;
+  max-width: 170px;
+  object-fit: contain;
+}
+.magma-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ── Pills (Magma's signature rounded buttons) ───────────────── */
+.magma-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border-radius: 50px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.25s ease, background 0.25s ease, color 0.25s ease;
+  white-space: nowrap;
+}
+.magma-pill:hover {
+  transform: translateY(-2px);
+}
+.magma-pill-outline {
+  background: var(--magma-accent);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  color: #fff;
+}
+.magma-pill-icon {
+  background: var(--magma-accent);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: #fff;
+  padding: 10px;
+}
+.magma-pill-solid {
+  background: #fff;
+  border: none;
+  color: #0b48ed;
+  font-weight: 600;
+}
+.magma-pill-solid:hover {
+  background: #eef3ff;
+}
+
+/* ── Hero ────────────────────────────────────────────────────── */
+.magma-hero {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  background: linear-gradient(160deg, #1137ca 0%, #0a3cce 60%, #0726a0 100%);
+}
+.magma-hero-bg {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+}
+.magma-hero-grid {
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse at 50% 40%, #000 30%, transparent 75%);
+}
+.magma-hero-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.55;
+}
+.magma-hero-orb-1 {
+  width: 520px;
+  height: 520px;
+  background: #2f6bff;
+  top: -120px;
+  right: -80px;
+  animation: magma-float 14s ease-in-out infinite;
+}
+.magma-hero-orb-2 {
+  width: 460px;
+  height: 460px;
+  background: #0a2a9e;
+  bottom: -140px;
+  left: -100px;
+  animation: magma-float 18s ease-in-out infinite reverse;
+}
+@keyframes magma-float {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(40px, 30px); }
+}
+
+/* Hero 3D-render video — full-cover background, like Magma's hero. */
+.magma-hero-video {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+}
+
+.magma-hero-bottom {
+  position: absolute;
+  bottom: 7%;
+  left: 8%;
+  right: 8%;
+  z-index: 2;
+}
+.magma-hero-title {
+  font-size: clamp(3.2rem, 9vw, 8rem);
+  font-weight: 200;
+  line-height: 0.98;
+  letter-spacing: -0.025em;
+  color: #fff;
+  animation: magma-rise 0.9s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.magma-hero-inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 22px;
+  margin-top: 26px;
+  animation: magma-rise 0.9s 0.15s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.magma-hero-sub {
+  font-size: clamp(1.05rem, 1.6vw, 1.5rem);
+  font-weight: 300;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
+}
+.magma-scroll-hint {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 2;
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  animation: magma-bob 2s ease-in-out infinite;
+}
+@keyframes magma-bob {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(6px); }
+}
+@keyframes magma-rise {
+  from { opacity: 0; transform: translateY(28px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Statement (per-letter reveal) ───────────────────────────── */
+.magma-statement {
+  min-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 12vh 8vw;
+  background: var(--magma-blue-2);
+  overflow: hidden;
+}
+.magma-statement-eyebrow {
+  font-size: 0.85rem;
+  font-weight: 400;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 2.5vw;
+}
+.magma-statement-text {
+  font-size: clamp(1.8rem, 4vw, 4rem);
+  font-weight: 300;
+  line-height: 1.25;
+  max-width: 16ch;        /* short, bold statement — wraps to a few big lines */
+  letter-spacing: -0.01em;
+}
+
+/* ── Feature sections ────────────────────────────────────────── */
+.magma-features {
+  background: linear-gradient(180deg, #0a3cce 0%, #0726a0 100%);
+}
+.magma-feature {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5vw;
+  align-items: start;
+  padding: 12vh 8vw;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  opacity: 0;
+  transform: translateY(40px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.magma-in .magma-feature {
+  opacity: 1;
+  transform: translateY(0);
+}
+.magma-feature-eyebrow {
+  font-size: 0.8rem;
+  letter-spacing: 0.25em;
+  color: rgba(255, 255, 255, 0.55);
+}
+.magma-feature-title {
+  margin-top: 14px;
+  font-size: clamp(1.8rem, 3.5vw, 3.2rem);
+  font-weight: 200;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.magma-feature-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  margin-bottom: 22px;
+}
+.magma-feature-body {
+  font-size: clamp(1rem, 1.3vw, 1.2rem);
+  font-weight: 300;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.75);
+  max-width: 44ch;
+}
+
+/* ── Security band ───────────────────────────────────────────── */
+.magma-security {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10vh 8vw;
+  background: #0726a0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+.magma-security-icon {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  color: #8db4ff;
+}
+.magma-security p {
+  font-size: clamp(1.1rem, 2vw, 1.8rem);
+  font-weight: 200;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.9);
+  max-width: 60ch;
+}
+
+/* ── Final CTA ───────────────────────────────────────────────── */
+.magma-cta {
+  min-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 36px;
+  text-align: center;
+  padding: 0 8vw;
+  background: linear-gradient(200deg, #0726a0 0%, #1137ca 100%);
+}
+.magma-cta-title {
+  font-size: clamp(2.6rem, 8vw, 7rem);
+  font-weight: 200;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.magma-cta-btn {
+  padding: 16px 32px;
+  font-size: 1.05rem;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────── */
+/* Keep hero text readable over the 3D scene with a soft bottom gradient. */
+.magma-hero::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: linear-gradient(to top, rgba(7, 38, 160, 0.85) 0%, rgba(7, 38, 160, 0) 45%);
+}
+
+@media (max-width: 768px) {
+  .magma-feature {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding: 9vh 7vw;
+  }
+  .magma-statement-text {
+    max-width: 100%;
+  }
+  .magma-hero-bottom {
+    left: 6%;
+    right: 6%;
+  }
+}
