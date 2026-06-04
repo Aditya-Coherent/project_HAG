@@ -9,11 +9,17 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { getDashboard, incrementReadCount, isValidDashboardId } from '@/lib/dashboard-mongo'
+import {
+  getDashboard,
+  incrementReadCount,
+  isValidDashboardId,
+  deleteDashboardOwnedBy,
+} from '@/lib/dashboard-mongo'
 import { hydrateDashboardDocument } from '@/lib/dashboard-snapshot-persist'
-import { cacheGet, cacheSet } from '@/lib/slave-cache'
+import { cacheGet, cacheSet, cacheInvalidate } from '@/lib/slave-cache'
 import { verifyAccessCode } from '@/lib/auth/access-code'
 import { getCurrentUser } from '@/lib/auth/current-user'
+import { deleteBlob, isBlobStoreEnabled } from '@/lib/blob-store'
 import type { DashboardDocument } from '@/lib/dashboard-mongo'
 
 export const dynamic = 'force-dynamic'
@@ -135,6 +141,58 @@ export async function GET(
     console.error('[dashboards/[id]] Error:', err)
     return NextResponse.json(
       { error: 'An unexpected error occurred while loading the dashboard.' },
+      { status: 500 }
+    )
+  }
+}
+
+/**
+ * DELETE /api/dashboards/[id] — owner-only delete.
+ *
+ * Removes the Mongo document, its R2 blobs (if offloaded), and the cache entry.
+ * Non-owners (and missing dashboards) get 404 so we don't reveal existence.
+ */
+export async function DELETE(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const { id } = await params
+
+  if (!isValidDashboardId(id)) {
+    return NextResponse.json({ error: 'Invalid dashboard ID.' }, { status: 400 })
+  }
+
+  const user = await getCurrentUser()
+  if (!user) {
+    return NextResponse.json({ error: 'You must be signed in.' }, { status: 401 })
+  }
+
+  try {
+    const deleted = await deleteDashboardOwnedBy(id, user.uid)
+    if (!deleted) {
+      // Either it doesn't exist or it isn't owned by this user.
+      return NextResponse.json(
+        { error: 'Dashboard not found, or you do not have permission to delete it.' },
+        { status: 404 }
+      )
+    }
+
+    // Best-effort cleanup of offloaded blobs (orphans are harmless but waste space).
+    if (isBlobStoreEnabled()) {
+      const keys = [deleted.dataS3Key, deleted.pricingAnalysisS3Key].filter(
+        (k): k is string => typeof k === 'string' && k.length > 0
+      )
+      await Promise.all(keys.map((k) => deleteBlob(k)))
+    }
+
+    // Drop any cached copy so it can't be served after deletion.
+    cacheInvalidate(id, deleted.partitionKey ?? 0)
+
+    return NextResponse.json({ ok: true, id })
+  } catch (err) {
+    console.error('[dashboards/[id]] DELETE error:', err)
+    return NextResponse.json(
+      { error: 'An unexpected error occurred while deleting the dashboard.' },
       { status: 500 }
     )
   }

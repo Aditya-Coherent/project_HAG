@@ -174,6 +174,23 @@ export async function updateDashboard(
 }
 
 /**
+ * Delete a dashboard, but only if it is owned by `ownerId`.
+ * Returns the deleted document (for blob/cache cleanup) or null if it was not
+ * found or not owned by the caller.
+ */
+export async function deleteDashboardOwnedBy(
+  id: string,
+  ownerId: string
+): Promise<DashboardDocument | null> {
+  if (!isValidDashboardId(id)) return null
+  const col = await getCollection()
+  // findOneAndDelete with an ownerId filter makes this atomic: a non-owner (or
+  // a missing doc) deletes nothing and gets null back.
+  const result = await col.findOneAndDelete({ _id: id, ownerId })
+  return (result as DashboardDocument | null) ?? null
+}
+
+/**
  * Increment readCount by 1.
  * Fire-and-forget — never awaited on the hot path so it adds zero latency
  * to the response served to the client.
