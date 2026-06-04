@@ -69,3 +69,16 @@ temp/
 server.log
 *.log
 
+# Added by code-review-graph
+.code-review-graph/
+
+# Editor / AI-assistant local config (not part of the app)
+.claude/
+.cursor/
+.cursorrules
+.gemini/
+.qoder/
+.vscode/
+.windsurfrules
+.mcp.json
+.opencode.json

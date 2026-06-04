@@ -17,6 +17,7 @@ import { getSystemHealth } from '@/lib/master-registry'
 import { pingMongo } from '@/lib/mongodb'
 import { getMongoUri, getMongoDatabaseName } from '@/lib/mongo-config'
 import { getPublicMongoErrorMessage } from '@/lib/mongo-errors'
+import { isBlobStoreEnabled, pingBlobStore } from '@/lib/blob-store'
 
 export const dynamic = 'force-dynamic'
 
@@ -36,10 +37,18 @@ export async function GET() {
   }
 
   try {
+    const blobEnabled = isBlobStoreEnabled()
+    const blobPing = blobEnabled ? await pingBlobStore() : { ok: false }
     const health = await getSystemHealth()
     return NextResponse.json({
       ...health,
       mongo: { configured: true, connected: true, database: getMongoDatabaseName() },
+      blobStore: {
+        // When disabled, large dashboards still work but are capped at ~15 MB inline.
+        enabled: blobEnabled,
+        connected: blobEnabled ? blobPing.ok : false,
+        ...(blobEnabled && !blobPing.ok ? { error: blobPing.error } : {}),
+      },
     })
   } catch (err) {
     console.error('[health] Failed to collect system health:', err)

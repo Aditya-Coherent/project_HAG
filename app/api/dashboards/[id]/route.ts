@@ -12,14 +12,24 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDashboard, incrementReadCount, isValidDashboardId } from '@/lib/dashboard-mongo'
 import { hydrateDashboardDocument } from '@/lib/dashboard-snapshot-persist'
 import { cacheGet, cacheSet } from '@/lib/slave-cache'
+import { verifyAccessCode } from '@/lib/auth/access-code'
+import { getCurrentUser } from '@/lib/auth/current-user'
+import type { DashboardDocument } from '@/lib/dashboard-mongo'
 
 export const dynamic = 'force-dynamic'
 
+/** Strip secrets before sending a dashboard to the client. */
+function publicView(doc: DashboardDocument): Omit<DashboardDocument, 'accessCodeHash' | 'ownerId'> {
+  const { accessCodeHash: _h, ownerId: _o, ...rest } = doc
+  return rest
+}
+
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   const { id } = await params
+  const code = request.nextUrl.searchParams.get('code')
 
   if (!id) {
     return NextResponse.json({ error: 'Missing dashboard ID.' }, { status: 400 })
@@ -84,13 +94,37 @@ export async function GET(
       cacheSet(id, doc.partitionKey ?? 0, doc)
     }
 
+    // ── Access control ───────────────────────────────────────────────────
+    // The owner (logged in) always has access. Everyone else must supply the
+    // correct per-link access code. Dashboards with no code (legacy/test) are
+    // treated as protected too — they require a code that doesn't exist, so a
+    // signed-in owner is the only way in. Adjust here to grandfather legacy.
+    if (doc.accessCodeHash) {
+      const user = await getCurrentUser()
+      const isOwner = !!user && !!doc.ownerId && user.uid === doc.ownerId
+      if (!isOwner) {
+        const codeOk = await verifyAccessCode(code, doc.accessCodeHash)
+        if (!codeOk) {
+          return NextResponse.json(
+            {
+              error: 'access_code_required',
+              detail: code
+                ? 'That access code is incorrect.'
+                : 'This dashboard is protected. Enter the access code to view it.',
+            },
+            { status: 401 }
+          )
+        }
+      }
+    }
+
     // ── Increment read counter (fire-and-forget, non-blocking) ───────────
     if (!fromCache) {
       // Only count on cache misses to avoid DB write on every cached hit
       incrementReadCount(id)
     }
 
-    return NextResponse.json(hydrateDashboardDocument(doc))
+    return NextResponse.json(publicView(await hydrateDashboardDocument(doc)))
 
   } catch (err) {
     console.error('[dashboards/[id]] Error:', err)

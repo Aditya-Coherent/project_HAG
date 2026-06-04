@@ -29,10 +29,16 @@ export interface DashboardDocument {
   partitionKey: number
   /** Total number of times this shared link has been opened. */
   readCount: number
+  /** User id (from users collection) who created this dashboard. */
+  ownerId?: string
+  /** scrypt hash of the per-link access code required to view /shared/[id]. */
+  accessCodeHash?: string | null
   /** Core market data (value / volume) — inline when small */
   data: ComparisonData | null
-  /** gzip+base64 market data when payload exceeds inline limit */
+  /** gzip+base64 market data when payload exceeds inline limit (no blob store) */
   dataCompressed?: string | null
+  /** Object-storage key for market blob when offloaded to R2/S3 */
+  dataS3Key?: string | null
   intelligenceType: 'customer' | 'distributor' | 'both' | null
   rawIntelligenceData: IntelligenceSheetData | null
   proposition2Data: IntelligenceSheetData | null
@@ -42,6 +48,8 @@ export interface DashboardDocument {
   distributorProposition3Data: IntelligenceSheetData | null
   pricingAnalysisData: unknown
   pricingAnalysisCompressed?: string | null
+  /** Object-storage key for pricing blob when offloaded to R2/S3 */
+  pricingAnalysisS3Key?: string | null
   showDemoNote: boolean
 }
 
@@ -52,6 +60,11 @@ function generateId(): string {
   const bytes = new Uint8Array(12)
   crypto.getRandomValues(bytes)
   return Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+}
+
+/** Mint a fresh dashboardId (exposed so blob keys can be namespaced before write). */
+export function newDashboardId(): string {
+  return generateId()
 }
 
 const VALID_ID_RE = /^[0-9a-f]{24}$/
@@ -132,6 +145,39 @@ export function incrementReadCount(id: string): void {
   getCollection()
     .then(col => col.updateOne({ _id: id }, { $inc: { readCount: 1 } }))
     .catch(err => console.error('[dashboard-mongo] incrementReadCount failed:', err))
+}
+
+/**
+ * Upsert using a caller-supplied id (needed when blobs were keyed by that id
+ * before the document was written). When `existingId` is a valid existing
+ * dashboard, it is updated in place; otherwise a new document is inserted
+ * under `id`.
+ */
+export async function upsertDashboardWithId(
+  id: string,
+  existingId: string | null,
+  payload: Omit<DashboardDocument, '_id' | 'createdAt' | 'updatedAt' | 'readCount'>
+): Promise<string> {
+  const col = await getCollection()
+
+  if (existingId && isValidDashboardId(existingId)) {
+    const result = await col.updateOne(
+      { _id: existingId },
+      { $set: { ...payload, updatedAt: new Date().toISOString() } }
+    )
+    if (result.matchedCount > 0) return existingId
+  }
+
+  const now = new Date().toISOString()
+  const doc: DashboardDocument = {
+    ...payload,
+    _id: id,
+    createdAt: now,
+    updatedAt: now,
+    readCount: 0,
+  }
+  await col.insertOne(doc)
+  return id
 }
 
 /**

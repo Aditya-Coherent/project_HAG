@@ -28,25 +28,33 @@ export default function SharedDashboardPage() {
     clearData,
   } = useDashboardStore()
 
-  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error' | 'code'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
+  const [code, setCode] = useState('')
+  const [codeError, setCodeError] = useState('')
+  const [verifying, setVerifying] = useState(false)
 
-  useEffect(() => {
-    if (!id) {
-      setErrorMsg('Invalid dashboard link.')
-      setStatus('error')
-      return
-    }
+  async function load(accessCode?: string) {
+    try {
+      const url = accessCode
+        ? `/api/dashboards/${id}?code=${encodeURIComponent(accessCode)}`
+        : `/api/dashboards/${id}`
+      const res = await fetch(url)
 
-    async function load() {
-      try {
-        const res = await fetch(`/api/dashboards/${id}`)
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error || `HTTP ${res.status}`)
-        }
+      if (res.status === 401) {
+        const body = await res.json().catch(() => ({}))
+        // Protected dashboard — prompt for the access code.
+        if (accessCode) setCodeError(body.detail || 'That access code is incorrect.')
+        setStatus('code')
+        return
+      }
 
-        const snapshot: DashboardDocument = await res.json()
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}))
+        throw new Error(body.error || `HTTP ${res.status}`)
+      }
+
+      const snapshot: DashboardDocument = await res.json()
 
         // Clear any previously loaded dashboard before hydrating
         clearData()
@@ -70,20 +78,69 @@ export default function SharedDashboardPage() {
         if (distProp2) setDistributorProposition2Data(distProp2)
         const distProp3 = parseIntelligenceSheet(snapshot.distributorProposition3Data)
         if (distProp3) setDistributorProposition3Data(distProp3)
-        if (snapshot.pricingAnalysisData) setPricingAnalysisData(snapshot.pricingAnalysisData)
-        setShowDemoNote(snapshot.showDemoNote || false)
+      if (snapshot.pricingAnalysisData) setPricingAnalysisData(snapshot.pricingAnalysisData)
+      setShowDemoNote(snapshot.showDemoNote || false)
 
-        setStatus('ready')
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Failed to load dashboard'
-        setErrorMsg(msg)
-        setStatus('error')
-      }
+      setStatus('ready')
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to load dashboard'
+      setErrorMsg(msg)
+      setStatus('error')
+    } finally {
+      setVerifying(false)
     }
+  }
 
+  useEffect(() => {
+    if (!id) {
+      setErrorMsg('Invalid dashboard link.')
+      setStatus('error')
+      return
+    }
     load()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
+
+  async function submitCode(e: React.FormEvent) {
+    e.preventDefault()
+    if (!code.trim()) return
+    setVerifying(true)
+    setCodeError('')
+    await load(code.trim())
+  }
+
+  if (status === 'code') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
+        <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+          <div className="text-4xl mb-3">🔒</div>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">Protected dashboard</h1>
+          <p className="text-sm text-gray-500 mb-6">
+            Enter the access code you received to view this dashboard.
+          </p>
+          <form onSubmit={submitCode} className="space-y-4">
+            <input
+              type="text"
+              value={code}
+              onChange={(e) => setCode(e.target.value.toUpperCase())}
+              placeholder="ACCESS CODE"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-center tracking-widest font-mono uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              autoFocus
+              maxLength={16}
+            />
+            {codeError && <p className="text-sm text-red-600">{codeError}</p>}
+            <button
+              type="submit"
+              disabled={verifying || !code.trim()}
+              className="w-full py-2.5 bg-blue-600 text-white rounded-md font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            >
+              {verifying ? 'Checking…' : 'View dashboard'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
 
   if (status === 'loading') {
     return (

@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { upsertDashboard, getDashboard, isValidDashboardId } from '@/lib/dashboard-mongo'
+import {
+  upsertDashboardWithId,
+  newDashboardId,
+  getDashboard,
+  isValidDashboardId,
+} from '@/lib/dashboard-mongo'
 import { assignPartition } from '@/lib/partition'
 import { cacheSet, cacheInvalidate } from '@/lib/slave-cache'
 import { getPublicAppOrigin } from '@/lib/app-origin'
@@ -10,8 +15,9 @@ import {
   decodeSaveRequestBody,
   persistMarketData,
   persistJsonField,
-  hydrateDashboardDocument,
 } from '@/lib/dashboard-snapshot-persist'
+import { getCurrentUser } from '@/lib/auth/current-user'
+import { generateAccessCode, hashAccessCode } from '@/lib/auth/access-code'
 import type { ComparisonData } from '@/lib/types'
 
 export const dynamic = 'force-dynamic'
@@ -19,6 +25,12 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 export async function POST(request: NextRequest) {
+  // Auth guard: only logged-in builders may create/update dashboards.
+  const currentUser = await getCurrentUser()
+  if (!currentUser) {
+    return NextResponse.json({ error: 'You must be signed in to create a dashboard.' }, { status: 401 })
+  }
+
   if (!getMongoUri()) {
     return NextResponse.json(
       {
@@ -50,16 +62,37 @@ export async function POST(request: NextRequest) {
   try {
     const existingId = isValidDashboardId(dashboardId) ? (dashboardId as string) : null
 
+    // Resolve the dashboardId up front: blob keys are namespaced by id, so we
+    // must know it before offloading to object storage. For updates we reuse
+    // the existing id (and its partition); for new dashboards we mint one.
     let partitionKey = 0
+    let id: string
+    // Access code: new dashboards get a fresh one (returned once); updates keep
+    // the existing code so previously-shared links keep working.
+    let accessCodeHash: string | null = null
+    let plainAccessCode: string | null = null
+    let ownerId: string = currentUser.uid
+
     if (existingId) {
       const existing = await getDashboard(existingId)
       partitionKey = existing?.partitionKey ?? (await assignPartition())
+      id = existingId
+      accessCodeHash = existing?.accessCodeHash ?? null
+      ownerId = existing?.ownerId ?? currentUser.uid
     } else {
       partitionKey = await assignPartition()
+      id = newDashboardId()
     }
 
-    const marketPersist = persistMarketData(data as ComparisonData | null | undefined)
-    const pricingPersist = persistJsonField(pricingAnalysisData)
+    if (!accessCodeHash) {
+      plainAccessCode = generateAccessCode()
+      accessCodeHash = await hashAccessCode(plainAccessCode)
+    }
+
+    const [marketPersist, pricingPersist] = await Promise.all([
+      persistMarketData(data as ComparisonData | null | undefined, id),
+      persistJsonField(pricingAnalysisData, id, 'pricing'),
+    ])
 
     const payload = {
       name: typeof body.name === 'string' ? body.name : 'Untitled Dashboard',
@@ -67,6 +100,7 @@ export async function POST(request: NextRequest) {
       partitionKey,
       data: marketPersist.data,
       dataCompressed: marketPersist.dataCompressed,
+      dataS3Key: marketPersist.dataS3Key,
       intelligenceType: (body.intelligenceType as any) ?? null,
       rawIntelligenceData: parseIntelligenceSheet(body.rawIntelligenceData),
       proposition2Data: parseIntelligenceSheet(body.proposition2Data),
@@ -76,20 +110,27 @@ export async function POST(request: NextRequest) {
       distributorProposition3Data: parseIntelligenceSheet(body.distributorProposition3Data),
       pricingAnalysisData: pricingPersist.inline,
       pricingAnalysisCompressed: pricingPersist.compressed,
+      pricingAnalysisS3Key: pricingPersist.s3Key,
       showDemoNote: body.showDemoNote === true,
+      ownerId,
+      accessCodeHash,
     }
 
-    const id = await upsertDashboard(existingId, payload)
+    await upsertDashboardWithId(id, existingId, payload)
 
     try {
       cacheInvalidate(id, partitionKey)
-      const cacheDoc = hydrateDashboardDocument({
+      // Warm the cache with the data we already hold in memory, so reads right
+      // after a save are instant and we avoid an immediate blob-store round trip.
+      const cacheDoc = {
         _id: id,
         ...payload,
+        data: (data as ComparisonData | null) ?? null,
+        pricingAnalysisData: pricingAnalysisData ?? null,
         readCount: 0,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
-      })
+      }
       cacheSet(id, partitionKey, cacheDoc)
     } catch (cacheErr) {
       console.warn('[dashboards/save] Cache warm failed (non-fatal):', cacheErr)
@@ -107,7 +148,12 @@ export async function POST(request: NextRequest) {
     }
 
     const shareUrl = `${origin}/shared/${id}`
-    return NextResponse.json({ id, shareUrl }, { status: 201 })
+    // accessCode is returned ONLY when freshly generated (new dashboard) — the
+    // builder must copy it now; it is never recoverable in plaintext afterward.
+    return NextResponse.json(
+      { id, shareUrl, ...(plainAccessCode ? { accessCode: plainAccessCode } : {}) },
+      { status: 201 }
+    )
   } catch (err) {
     console.error('[dashboards/save] Error:', err)
     const { message, status } = getPublicMongoErrorMessage(err)

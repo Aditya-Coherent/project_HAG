@@ -11,6 +11,10 @@ const nextConfig: NextConfig = {
   },
   // Optimize for production
   output: 'standalone',
+  // Pin the tracing root to THIS project dir. Without it, Next detects the
+  // parent folder's stray lockfile and nests standalone output under BUILDER/,
+  // which breaks the Docker image path. This also silences the lockfile warning.
+  outputFileTracingRoot: __dirname,
   // Increase memory limit for large JSON processing
   serverExternalPackages: ['fs', 'path'],
   // Set empty turbopack config to silence Next.js 16 error (we're using webpack via --webpack flag)

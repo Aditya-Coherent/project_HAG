@@ -1,0 +1,36 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Connect your GitHub repo to Render → "New +" → "Blueprint" → pick this file.
+# Secret values (sync: false) must be filled in via the Render dashboard.
+
+services:
+  - type: web
+    name: dashboard-builder
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    # Health check so Render knows the app is up (returns 200 when Mongo is reachable).
+    healthCheckPath: /api/dashboards/health
+    envVars:
+      # ── Required ──────────────────────────────────────────────────────────
+      - key: MONGODB_URI
+        sync: false # set in dashboard (Atlas connection string)
+      - key: AUTH_SECRET
+        generateValue: true # Render generates a strong random value once
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false # set to your Render URL, e.g. https://dashboard-builder.onrender.com
+      # ── Cloudflare R2 (large-dashboard offload) ───────────────────────────
+      - key: BLOB_BUCKET
+        sync: false
+      - key: BLOB_ENDPOINT
+        sync: false
+      - key: BLOB_ACCESS_KEY_ID
+        sync: false
+      - key: BLOB_SECRET_ACCESS_KEY
+        sync: false
+      - key: BLOB_REGION
+        value: auto
+      - key: BLOB_KEY_PREFIX
+        value: dashboards/
+      # ── Runtime ───────────────────────────────────────────────────────────
+      - key: NODE_ENV
+        value: production

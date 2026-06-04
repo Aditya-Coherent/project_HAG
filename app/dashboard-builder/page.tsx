@@ -8,6 +8,7 @@ import { useDashboardStore } from '@/lib/store'
 import type { ComparisonData } from '@/lib/types'
 import { IntelligenceDataInput, type IntelligenceMode } from '@/components/dashboard-builder/IntelligenceDataInput'
 import { postDashboardSave } from '@/lib/share-upload'
+import { AuthStatus } from '@/components/AuthStatus'
 
 function modeToStoreType(m: IntelligenceMode): 'customer' | 'distributor' | 'both' | null {
   if (m.customer && m.distributor) return 'both'
@@ -56,6 +57,7 @@ export default function DashboardBuilderPage() {
   const [processedData, setProcessedData] = useState<ComparisonData | null>(null)
   const [showDemoNoteToggle, setShowDemoNoteToggle] = useState(false)
   const [shareUrl, setShareUrl] = useState<string | null>(null)
+  const [accessCode, setAccessCode] = useState<string | null>(null)
   const [isGeneratingLink, setIsGeneratingLink] = useState(false)
   const [linkCopied, setLinkCopied] = useState(false)
   const [shareLinkError, setShareLinkError] = useState<string | null>(null)
@@ -370,11 +372,20 @@ export default function DashboardBuilderPage() {
       let body: any
       try { body = await res.json() } catch { body = {} }
 
+      if (res.status === 401) {
+        setShareLinkError('Your session expired. Please sign in again to generate a link.')
+        return
+      }
       if (!res.ok) {
         throw new Error(body?.error || `Server error (${res.status})`)
       }
 
       setShareUrl(body.shareUrl)
+      // accessCode is only returned for newly-created dashboards. Capture it so
+      // the builder can copy it now — it's never retrievable again.
+      if (body.accessCode && typeof body.accessCode === 'string') {
+        setAccessCode(body.accessCode)
+      }
       if (body.id && typeof body.id === 'string') {
         setDashboardId(body.id)
       }
@@ -850,13 +861,16 @@ export default function DashboardBuilderPage() {
                   </p>
                 </div>
               </button>
-              <button
-                type="button"
-                onClick={() => router.push('/')}
-                className="builder-btn-ghost shrink-0"
-              >
-                Back to Dashboard
-              </button>
+              <div className="flex shrink-0 items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.push('/')}
+                  className="builder-btn-ghost shrink-0"
+                >
+                  Back to Dashboard
+                </button>
+                <AuthStatus />
+              </div>
             </div>
           </div>
         </header>
@@ -1538,6 +1552,29 @@ export default function DashboardBuilderPage() {
                   )}
 
                   {shareUrl ? (
+                    <div className="space-y-3">
+                    {accessCode && (
+                      <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                        <p className="text-xs font-semibold text-amber-200 mb-1 flex items-center gap-1.5">
+                          🔒 Access code (share with the recipient — shown only once)
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <code className="flex-1 font-mono text-lg tracking-widest text-amber-100 bg-black/20 rounded px-3 py-1.5 select-all">
+                            {accessCode}
+                          </code>
+                          <button
+                            type="button"
+                            onClick={() => navigator.clipboard?.writeText(accessCode)}
+                            className="builder-btn-ghost text-amber-200 border-amber-500/30 text-sm px-3 py-1.5"
+                          >
+                            Copy Code
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-amber-200/70 mt-1.5">
+                          The recipient must enter this code to open the link. Save it now — it can&apos;t be retrieved later.
+                        </p>
+                      </div>
+                    )}
                     <div className="flex flex-wrap items-center gap-2">
                       <input
                         type="text"
@@ -1573,12 +1610,13 @@ export default function DashboardBuilderPage() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => { setShareUrl(null); setLinkCopied(false); setShareLinkError(null) }}
+                        onClick={() => { setShareUrl(null); setAccessCode(null); setLinkCopied(false); setShareLinkError(null) }}
                         className="builder-btn-ghost text-emerald-300 border-emerald-500/30"
                         title="Generate a new link"
                       >
                         New Link
                       </button>
+                    </div>
                     </div>
                   ) : (
                     <button
