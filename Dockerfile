@@ -41,9 +41,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-# Render sets $PORT; Next standalone respects PORT. Default to 3002 locally.
-ENV PORT=3002
+# Do NOT hardcode PORT — Render (and most PaaS) inject $PORT at runtime and
+# route traffic to it. Next standalone's server.js reads process.env.PORT, so
+# we let the platform set it. HOSTNAME must be 0.0.0.0 to accept external
+# traffic inside the container. EXPOSE is documentation only.
 ENV HOSTNAME=0.0.0.0
-EXPOSE 3002
+EXPOSE 10000
 
 CMD ["node", "server.js"]

@@ -8,8 +8,9 @@ services:
     runtime: docker
     plan: free
     dockerfilePath: ./Dockerfile
-    # Health check so Render knows the app is up (returns 200 when Mongo is reachable).
-    healthCheckPath: /api/dashboards/health
+    # Liveness check — Mongo-independent so a transient Atlas hiccup never makes
+    # Render think the app is down. (Use /api/dashboards/health for readiness.)
+    healthCheckPath: /api/healthz
     envVars:
       # ── Required ──────────────────────────────────────────────────────────
       - key: MONGODB_URI
