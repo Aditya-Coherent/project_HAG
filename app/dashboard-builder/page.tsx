@@ -2,13 +2,14 @@
 
 import { useState, useEffect, type Dispatch, type SetStateAction } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, Loader2, CheckCircle2, XCircle, FileSpreadsheet, Eye, Users, Building2, ArrowRight, TrendingUp, DollarSign } from 'lucide-react'
+import { Upload, Loader2, CheckCircle2, XCircle, FileSpreadsheet, Eye, Users, Building2, ArrowRight, TrendingUp, DollarSign, LayoutList } from 'lucide-react'
 import Image from 'next/image'
 import { useDashboardStore } from '@/lib/store'
 import type { ComparisonData } from '@/lib/types'
 import { IntelligenceDataInput, type IntelligenceMode } from '@/components/dashboard-builder/IntelligenceDataInput'
 import { postDashboardSave } from '@/lib/share-upload'
 import { AuthStatus } from '@/components/AuthStatus'
+import { PreviousDashboards } from '@/components/PreviousDashboards'
 
 function modeToStoreType(m: IntelligenceMode): 'customer' | 'distributor' | 'both' | null {
   if (m.customer && m.distributor) return 'both'
@@ -73,7 +74,7 @@ export default function DashboardBuilderPage() {
   const [customerIntelStatusMessage, setCustomerIntelStatusMessage] = useState('')
   const [distributorIntelStatus, setDistributorIntelStatus] = useState<'idle' | 'processing' | 'success' | 'error'>('idle')
   const [distributorIntelStatusMessage, setDistributorIntelStatusMessage] = useState('')
-  const [activeTab, setActiveTab] = useState<'market' | 'intelligence' | 'competitive' | 'pricing'>('market')
+  const [activeTab, setActiveTab] = useState<'market' | 'intelligence' | 'competitive' | 'pricing' | 'previous'>('market')
 
   useEffect(() => {
     setIntelligenceType(modeToStoreType(intelMode))
@@ -911,6 +912,16 @@ export default function DashboardBuilderPage() {
                   <DollarSign className="h-5 w-5" />
                   3. Pricing Analysis
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveTab('previous')}
+                  className={`builder-tab ${
+                    activeTab === 'previous' ? 'builder-tab-active' : 'builder-tab-inactive'
+                  }`}
+                >
+                  <LayoutList className="h-5 w-5" />
+                  Previous Dashboards
+                </button>
               </div>
             </div>
 
@@ -1498,10 +1509,12 @@ export default function DashboardBuilderPage() {
             </div>
           </div>
           )}
+
+          {activeTab === 'previous' && <PreviousDashboards />}
         </div>
 
-        {/* View Dashboard Button - Shows when any data is processed */}
-        {(marketStatus === 'success' || hadIntelligenceUploadSuccess || pricingStatus === 'success') && (
+        {/* View Dashboard Button - Shows when any data is processed (hidden on Previous tab) */}
+        {activeTab !== 'previous' && (marketStatus === 'success' || hadIntelligenceUploadSuccess || pricingStatus === 'success') && (
           <div className="mt-6 space-y-4">
             {/* View Dashboard */}
             <div className="builder-callout-ready">

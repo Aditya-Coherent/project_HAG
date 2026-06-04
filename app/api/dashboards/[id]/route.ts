@@ -19,8 +19,10 @@ import type { DashboardDocument } from '@/lib/dashboard-mongo'
 export const dynamic = 'force-dynamic'
 
 /** Strip secrets before sending a dashboard to the client. */
-function publicView(doc: DashboardDocument): Omit<DashboardDocument, 'accessCodeHash' | 'ownerId'> {
-  const { accessCodeHash: _h, ownerId: _o, ...rest } = doc
+function publicView(
+  doc: DashboardDocument
+): Omit<DashboardDocument, 'accessCodeHash' | 'ownerId' | 'accessCode'> {
+  const { accessCodeHash: _h, ownerId: _o, accessCode: _c, ...rest } = doc
   return rest
 }
 
@@ -108,6 +110,9 @@ export async function GET(
           return NextResponse.json(
             {
               error: 'access_code_required',
+              // Dashboard name is not sensitive — surface it so the protected
+              // page can greet the viewer with which dashboard they're opening.
+              name: doc.name ?? null,
               detail: code
                 ? 'That access code is incorrect.'
                 : 'This dashboard is protected. Enter the access code to view it.',

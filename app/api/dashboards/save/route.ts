@@ -78,6 +78,7 @@ export async function POST(request: NextRequest) {
       partitionKey = existing?.partitionKey ?? (await assignPartition())
       id = existingId
       accessCodeHash = existing?.accessCodeHash ?? null
+      plainAccessCode = existing?.accessCode ?? null
       ownerId = existing?.ownerId ?? currentUser.uid
     } else {
       partitionKey = await assignPartition()
@@ -114,6 +115,7 @@ export async function POST(request: NextRequest) {
       showDemoNote: body.showDemoNote === true,
       ownerId,
       accessCodeHash,
+      accessCode: plainAccessCode,
     }
 
     await upsertDashboardWithId(id, existingId, payload)
@@ -148,10 +150,10 @@ export async function POST(request: NextRequest) {
     }
 
     const shareUrl = `${origin}/shared/${id}`
-    // accessCode is returned ONLY when freshly generated (new dashboard) — the
-    // builder must copy it now; it is never recoverable in plaintext afterward.
+    // accessCode is now stored in plaintext, so we can always return it (the
+    // owner can also re-view it later in "Previous Dashboards").
     return NextResponse.json(
-      { id, shareUrl, ...(plainAccessCode ? { accessCode: plainAccessCode } : {}) },
+      { id, shareUrl, accessCode: plainAccessCode },
       { status: 201 }
     )
   } catch (err) {

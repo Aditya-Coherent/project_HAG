@@ -33,6 +33,7 @@ export default function SharedDashboardPage() {
   const [code, setCode] = useState('')
   const [codeError, setCodeError] = useState('')
   const [verifying, setVerifying] = useState(false)
+  const [protectedName, setProtectedName] = useState<string | null>(null)
 
   async function load(accessCode?: string) {
     try {
@@ -44,6 +45,7 @@ export default function SharedDashboardPage() {
       if (res.status === 401) {
         const body = await res.json().catch(() => ({}))
         // Protected dashboard — prompt for the access code.
+        if (body.name) setProtectedName(body.name)
         if (accessCode) setCodeError(body.detail || 'That access code is incorrect.')
         setStatus('code')
         return
@@ -114,17 +116,21 @@ export default function SharedDashboardPage() {
       <div className="flex items-center justify-center min-h-screen bg-gray-50 px-4">
         <div className="w-full max-w-sm bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
           <div className="text-4xl mb-3">🔒</div>
-          <h1 className="text-xl font-bold text-gray-900 mb-1">Protected dashboard</h1>
+          <h1 className="text-xl font-bold text-gray-900 mb-1">
+            {protectedName || 'Protected dashboard'}
+          </h1>
           <p className="text-sm text-gray-500 mb-6">
-            Enter the access code you received to view this dashboard.
+            {protectedName
+              ? 'This dashboard is protected. Enter the access code you received to view it.'
+              : 'Enter the access code you received to view this dashboard.'}
           </p>
           <form onSubmit={submitCode} className="space-y-4">
             <input
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value.toUpperCase())}
-              placeholder="ACCESS CODE"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-center tracking-widest font-mono uppercase focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+              placeholder="Enter access code"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-md text-center font-mono uppercase bg-white text-gray-900 placeholder-gray-400 placeholder:tracking-normal placeholder:normal-case tracking-[0.3em] focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
               autoFocus
               maxLength={16}
             />

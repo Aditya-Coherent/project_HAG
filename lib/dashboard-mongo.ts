@@ -33,6 +33,13 @@ export interface DashboardDocument {
   ownerId?: string
   /** scrypt hash of the per-link access code required to view /shared/[id]. */
   accessCodeHash?: string | null
+  /**
+   * Plaintext access code, kept so the owner can always retrieve it in their
+   * "Previous Dashboards" list. Readable in the DB by design — acceptable for
+   * this internal tool where the owner is trusted. NEVER returned to viewers
+   * (stripped in the public read path).
+   */
+  accessCode?: string | null
   /** Core market data (value / volume) — inline when small */
   data: ComparisonData | null
   /** gzip+base64 market data when payload exceeds inline limit (no blob store) */
@@ -114,6 +121,37 @@ export async function getDashboard(id: string): Promise<DashboardDocument | null
 
   const col = await getCollection()
   return col.findOne({ _id: id }) as Promise<DashboardDocument | null>
+}
+
+/**
+ * List dashboards owned by a user, newest first. Projects only lightweight
+ * metadata (no market/intelligence/pricing payload) so the "Previous
+ * Dashboards" list stays fast and small.
+ */
+export async function listDashboardsByOwner(
+  ownerId: string
+): Promise<
+  Pick<DashboardDocument, '_id' | 'name' | 'accessCode' | 'createdAt' | 'updatedAt' | 'readCount'>[]
+> {
+  const col = await getCollection()
+  return col
+    .find(
+      { ownerId },
+      {
+        projection: {
+          name: 1,
+          accessCode: 1,
+          createdAt: 1,
+          updatedAt: 1,
+          readCount: 1,
+        },
+      }
+    )
+    .sort({ createdAt: -1 })
+    .toArray() as unknown as Pick<
+    DashboardDocument,
+    '_id' | 'name' | 'accessCode' | 'createdAt' | 'updatedAt' | 'readCount'
+  >[]
 }
 
 /**
