@@ -149,7 +149,7 @@ export function DashboardShell({ readOnly = false }: Props) {
         <div className="container mx-auto px-6 py-6 flex-1">
           <div className="mb-6 flex items-center justify-between gap-4">
             <div className="flex-shrink-0">
-              <Image src="/logo.png" alt="Coherent Market Insights Logo" width={150} height={60} className="h-auto w-auto max-w-[150px]" priority />
+              <Image src="/logo.png" alt="Coherent Market Insights Logo" width={150} height={60} unoptimized className="h-auto w-auto max-w-[150px]" priority />
             </div>
             <div className="flex-1 flex justify-center">
               <div className="text-center">
@@ -186,7 +186,7 @@ export function DashboardShell({ readOnly = false }: Props) {
         {/* Header */}
         <div className="mb-6 flex items-center justify-between gap-4">
           <div className="flex-shrink-0">
-            <Image src="/logo.png" alt="Coherent Market Insights Logo" width={150} height={60} className="h-auto w-auto max-w-[150px]" priority />
+            <Image src="/logo.png" alt="Coherent Market Insights Logo" width={150} height={60} unoptimized className="h-auto w-auto max-w-[150px]" priority />
           </div>
           <div className="flex-1 flex justify-center">
             <div className="text-center">

@@ -846,7 +846,7 @@ export default function DashboardBuilderPage() {
               >
                 <span className="shrink-0 rounded-lg bg-white px-3 py-2 shadow-sm">
                   <Image
-                    src="/logo.svg"
+                    src="/logo.png"
                     alt="Coherent Market Insights"
                     width={200}
                     height={48}
